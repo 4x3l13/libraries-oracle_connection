@@ -12,14 +12,14 @@ from .constants import *
 
 
 class ConnectionDB:
-    """ Class to connect to databases."""
+    """ Permite realizar una conexión a una Base de Datos"""
 
     def __init__(self, setup: Dict[str, str]) -> None:
         """Constructor.
 
         Args:
         setup (Dict[str, str]):
-            Dictionary with the following keys:
+            El diccionario necesita de las siguientes keys:
                 - host: Server host.
                 - port: Server port.
                 - sdi: Database SDI.
@@ -49,6 +49,18 @@ class ConnectionDB:
             if type_code == cx_Oracle.CLOB:
                 lob_columns.append(index)
         return lob_columns
+
+    def __main(self) -> None:
+        """Válida que el diccionario contenga los atributos necesarios para que la clase funcione.
+        """
+        missing = [key for key in self.__attributes if str(key).lower() not in self.__setup.keys()]
+        if len(missing) > 0:
+            logging.error(MISSING_ATTRIBUTES)
+            logging.error(missing)
+        try:
+            cx_Oracle.init_oracle_client(lib_dir=self.__setup["driver"])
+        except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
+            logging.warning(str(exc))
 
     def __close_connection(self) -> None:
         """Cerrar la conexión a la base de datos."""
@@ -80,18 +92,6 @@ class ConnectionDB:
             logging.error(str(exc),
                           exc_info=True)
             return False
-
-    def __main(self) -> None:
-        """Válida que el diccionario contenga los atributos necesarios para que la clase funcione.
-        """
-        missing = [key for key in self.__attributes if str(key).lower() not in self.__setup.keys()]
-        if len(missing) > 0:
-            logging.error(MISSING_ATTRIBUTES)
-            logging.error(missing)
-        try:
-            cx_Oracle.init_oracle_client(lib_dir=self.__setup["driver"])
-        except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
-            logging.warning(str(exc))
 
     def read_data(self, query: str, parameters: tuple = (), datatype: str = "dict") -> [Dict, List]:
         """Obtener los datos de una consulta.
