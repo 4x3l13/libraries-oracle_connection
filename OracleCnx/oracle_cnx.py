@@ -32,7 +32,7 @@ class ConnectionDB:
         """
 
         self.__attributes = ['host', 'port', 'sdi', 'user', 'password', 'driver']
-        self.__connection = None
+        self.__connection: cx_Oracle.connect = None
         self.__setup: Dict = setup
         self.__main()
 
@@ -51,8 +51,7 @@ class ConnectionDB:
         return lob_columns
 
     def __main(self) -> None:
-        """Válida que el diccionario contenga los atributos necesarios para que la clase funcione.
-        """
+        """Válida que el diccionario contenga los atributos necesarios para que la clase funcione."""
         missing = [key for key in self.__attributes if str(key).lower() not in self.__setup.keys()]
         if len(missing) > 0:
             logging.error(MISSING_ATTRIBUTES)
@@ -68,7 +67,12 @@ class ConnectionDB:
             if self.__connection is not None:
                 self.__connection.close()
                 logging.info(CLOSE_CONNECTION)
-        except ConnectionError as exc:
+            else:
+                logging.info("IS_CLOSED.")
+        except cx_Oracle.DatabaseError as exc:
+            logging.error(str(exc),
+                          exc_info=True)
+        except Exception as exc:
             logging.error(str(exc),
                           exc_info=True)
 
@@ -89,11 +93,12 @@ class ConnectionDB:
             logging.info(ESTABLISHED_CONNECTION, self.__setup["host"])
             return True
         except ConnectionError as exc:
+            self.__connection = None
             logging.error(str(exc),
                           exc_info=True)
             return False
 
-    def read_data(self, query: str, parameters: tuple = (), datatype: str = "dict") -> [Dict, List]:
+    def read_data(self, query: str, parameters: dict = {}, datatype: str = "dict") -> [Dict, List]:
         """Obtener los datos de una consulta.
 
         Args:
@@ -116,6 +121,7 @@ class ConnectionDB:
                             # Ejecutar la consulta
                             logging.debug(f'Executing query: {query}')
                             cursor.execute(query, parameters)
+                            logging.debug(f'Final query: {cursor.statement}')
                             # Obtener las descripciones de las columnas.
                             lob_columns = self.__find_lob_columns(cursor.description)
                             data = []
@@ -142,8 +148,6 @@ class ConnectionDB:
                 except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
                     logging.error(str(exc),
                                   exc_info=True)
-                finally:
-                    self.__close_connection()
             else:
                 logging.warning(INVALID_DATATYPE)
         else:
