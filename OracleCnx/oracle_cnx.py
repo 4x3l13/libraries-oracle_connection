@@ -5,10 +5,11 @@ Created on Mon Dic 26 10:00:00 2022
 @author: Jhonatan Martínez
 """
 
-import logging
+from MyLogger import setup_logger
 from typing import Dict, List
 import cx_Oracle
-from .constants import *
+from OracleCnx.constants import *
+logger = setup_logger(__name__)
 
 
 class ConnectionDB:
@@ -54,26 +55,26 @@ class ConnectionDB:
         """Válida que el diccionario contenga los atributos necesarios para que la clase funcione."""
         missing = [key for key in self.__attributes if str(key).lower() not in self.__setup.keys()]
         if len(missing) > 0:
-            logging.error(MISSING_ATTRIBUTES)
-            logging.error(missing)
+            logger.error(MISSING_ATTRIBUTES)
+            logger.error(missing)
         try:
             cx_Oracle.init_oracle_client(lib_dir=self.__setup["driver"])
         except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
-            logging.warning(str(exc))
+            logger.warning(str(exc))
 
     def __close_connection(self) -> None:
         """Cerrar la conexión a la base de datos."""
         try:
             if self.__connection is not None:
                 self.__connection.close()
-                logging.info(CLOSE_CONNECTION)
+                logger.info(CLOSE_CONNECTION)
             else:
-                logging.info("IS_CLOSED.")
+                logger.info("IS_CLOSED.")
         except cx_Oracle.DatabaseError as exc:
-            logging.error(str(exc),
+            logger.error(str(exc),
                           exc_info=True)
         except Exception as exc:
-            logging.error(str(exc),
+            logger.error(str(exc),
                           exc_info=True)
 
     def __get_connection(self) -> bool:
@@ -90,11 +91,11 @@ class ConnectionDB:
                                                   password=self.__setup["password"],
                                                   dsn=dsn,
                                                   encoding="UTF-8")
-            logging.info(ESTABLISHED_CONNECTION, self.__setup["host"])
+            logger.info(ESTABLISHED_CONNECTION, self.__setup["host"])
             return True
         except ConnectionError as exc:
             self.__connection = None
-            logging.error(str(exc),
+            logger.error(str(exc),
                           exc_info=True)
             return False
 
@@ -119,9 +120,9 @@ class ConnectionDB:
                             cursor.prefetchrows = 100000
                             cursor.arraysize = 100000
                             # Ejecutar la consulta
-                            logging.debug(f'Executing query: {query}')
+                            logger.debug(f'Executing query: {query}')
                             cursor.execute(query, parameters)
-                            logging.debug(f'Final query: {cursor.statement}')
+                            logger.debug(f'Final query: {cursor.statement}')
                             # Obtener las descripciones de las columnas.
                             lob_columns = self.__find_lob_columns(cursor.description)
                             data = []
@@ -144,14 +145,14 @@ class ConnectionDB:
                                 show_data = dictionary
                             elif datatype == 'list':
                                 show_data = [columns, data]
-                        logging.info(DATA_OBTAINED)
+                        logger.info(DATA_OBTAINED)
                 except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
-                    logging.error(str(exc),
+                    logger.error(str(exc),
                                   exc_info=True)
             else:
-                logging.warning(INVALID_DATATYPE)
+                logger.warning(INVALID_DATATYPE)
         else:
-            logging.warning(NO_CONNECTION)
+            logger.warning(NO_CONNECTION)
 
         return show_data
 
@@ -170,20 +171,20 @@ class ConnectionDB:
             try:
                 with self.__connection as cnx:
                     with cnx.cursor() as cursor:
-                        logging.debug(EXECUTING_QUERY, query)
+                        logger.debug(EXECUTING_QUERY, query)
                         cursor.execute(query, parameters)
                     cnx.commit()
-                    logging.info(EXECUTED_QUERY)
+                    logger.info(EXECUTED_QUERY)
                     return True
             except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
                 cnx.rollback()
-                logging.error(str(exc),
+                logger.error(str(exc),
                               exc_info=True)
                 return False
             finally:
                 self.__close_connection()
         else:
-            logging.error(NO_CONNECTION)
+            logger.error(NO_CONNECTION)
             return False
 
     def execute_many(self, query: str, values: List) -> bool:
@@ -201,18 +202,18 @@ class ConnectionDB:
                 with self.__get_connection() as cnx:
                     with cnx.cursor() as cursor:
                         cursor.prepare(query)
-                        logging.debug(EXECUTING_QUERY, query)
+                        logger.debug(EXECUTING_QUERY, query)
                         cursor.executemany(None, values)
                     cnx.commit()
-                    logging.info(EXECUTED_QUERY)
+                    logger.info(EXECUTED_QUERY)
                     return True
             except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
                 cnx.rollback()
-                logging.error(str(exc),
+                logger.error(str(exc),
                               exc_info=True)
                 return False
             finally:
                 self.__close_connection()
         else:
-            logging.error(NO_CONNECTION)
+            logger.error(NO_CONNECTION)
             return False

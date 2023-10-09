@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 
 HERE = pathlib.Path(__file__).parent
 
-VERSION = '0.0.1' #Muy importante, deberéis ir cambiando la versión de vuestra librería según incluyáis nuevas funcionalidades
+VERSION = '0.0.2' #Muy importante, deberéis ir cambiando la versión de vuestra librería según incluyáis nuevas funcionalidades
 PACKAGE_NAME = 'OracleCnx' #Debe coincidir con el nombre de la carpeta
 AUTHOR = 'Jhonatan Martínez'
 AUTHOR_EMAIL = 'jhonatanmartinez130220@gmail.com'
@@ -18,6 +18,7 @@ LONG_DESC_TYPE = "text/markdown"
 #Paquetes necesarios para que funcione la librería. Se instalarán a la vez si no lo tuvieras ya instalado
 INSTALL_REQUIRES = [
     'cx_Oracle==8.3.0',
+    'MyLogger==0.0.1'
       ]
 
 setup(
