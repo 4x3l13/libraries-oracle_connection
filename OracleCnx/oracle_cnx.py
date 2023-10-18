@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Dic 26 10:00:00 2022
+Created on Mon Oct 02 10:00:00 2023
 
 @author: Jhonatan Martínez
 """
 
-from MyLogger import setup_logger
-from typing import Dict, List
 import cx_Oracle
+from MyLogger import setup_logger
 from OracleCnx.constants import *
+from typing import Dict, List
+
+
 logger = setup_logger(__name__)
 
 
@@ -67,15 +69,13 @@ class ConnectionDB:
         try:
             if self.__connection is not None:
                 self.__connection.close()
-                logger.info(CLOSE_CONNECTION)
+                logger.debug(CLOSE_CONNECTION)
             else:
-                logger.info("IS_CLOSED.")
+                logger.debug("IS_CLOSED.")
         except cx_Oracle.DatabaseError as exc:
-            logger.error(str(exc),
-                          exc_info=True)
+            logger.error(str(exc), exc_info=True)
         except Exception as exc:
-            logger.error(str(exc),
-                          exc_info=True)
+            logger.error(str(exc), exc_info=True)
 
     def __get_connection(self) -> bool:
         """Crear y obtener la conexión a una base de datos
@@ -91,20 +91,19 @@ class ConnectionDB:
                                                   password=self.__setup["password"],
                                                   dsn=dsn,
                                                   encoding="UTF-8")
-            logger.info(ESTABLISHED_CONNECTION, self.__setup["host"])
+            logger.debug(ESTABLISHED_CONNECTION, self.__setup["host"])
             return True
         except ConnectionError as exc:
             self.__connection = None
-            logger.error(str(exc),
-                          exc_info=True)
+            logger.error(str(exc), exc_info=True)
             return False
 
-    def read_data(self, query: str, parameters: dict = {}, datatype: str = "dict") -> [Dict, List]:
+    def read_data(self, query: str, parameters: dict, datatype: str = "dict") -> [Dict, List]:
         """Obtener los datos de una consulta.
 
         Args:
             query (str): Consulta a ejecutar.
-            parameters (tuple, optional): Parámetros de la consulta.
+            parameters (Dict, optional): Parámetros de la consulta.
             datatype (str, optional): Tipo de datos a retornar.
 
         Returns:
@@ -120,9 +119,8 @@ class ConnectionDB:
                             cursor.prefetchrows = 100000
                             cursor.arraysize = 100000
                             # Ejecutar la consulta
-                            logger.debug(f'Executing query: {query}')
                             cursor.execute(query, parameters)
-                            logger.debug(f'Final query: {cursor.statement}')
+                            query = cursor.statement
                             # Obtener las descripciones de las columnas.
                             lob_columns = self.__find_lob_columns(cursor.description)
                             data = []
@@ -145,10 +143,11 @@ class ConnectionDB:
                                 show_data = dictionary
                             elif datatype == 'list':
                                 show_data = [columns, data]
-                        logger.info(DATA_OBTAINED)
-                except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
-                    logger.error(str(exc),
-                                  exc_info=True)
+                        logger.info(DATA_OBTAINED, query)
+                except cx_Oracle.DatabaseError as exc:
+                    logger.error(f"Error en query {query}: {str(exc)}", exc_info=True)
+                except Exception as exc:
+                    logger.error(f"Error en query {query}: {str(exc)}", exc_info=True)
             else:
                 logger.warning(INVALID_DATATYPE)
         else:
@@ -156,13 +155,13 @@ class ConnectionDB:
 
         return show_data
 
-    def execute_query(self, query: str, parameters: tuple = ()) -> bool:
+    def execute_query(self, query: str, parameters: Dict) -> bool:
         """
         Ejecutar una consulta.
 
         Args:
             query (str): Consulta a ejecutar.
-            parameters (tuple, optional): Parámetros de la consulta.
+            parameters (Dict, optional): Parámetros de la consulta.
 
         Returns:
             bool: True si se ejecuta correctamente, False en caso contrario.
@@ -171,20 +170,21 @@ class ConnectionDB:
             try:
                 with self.__connection as cnx:
                     with cnx.cursor() as cursor:
-                        logger.debug(EXECUTING_QUERY, query)
                         cursor.execute(query, parameters)
+                        query = cursor.statement
                     cnx.commit()
-                    logger.info(EXECUTED_QUERY)
+                    logger.info(EXECUTED_QUERY, query)
                     return True
-            except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
+            except cx_Oracle.DatabaseError as exc:
+                logger.error(f"Error en query {query}: {str(exc)}", exc_info=True)
                 cnx.rollback()
-                logger.error(str(exc),
-                              exc_info=True)
                 return False
-            finally:
-                self.__close_connection()
+            except Exception as exc:
+                logger.error(f"Error en query {query}: {str(exc)}", exc_info=True)
+                cnx.rollback()
+                return False
         else:
-            logger.error(NO_CONNECTION)
+            logger.warning(NO_CONNECTION)
             return False
 
     def execute_many(self, query: str, values: List) -> bool:
@@ -202,18 +202,19 @@ class ConnectionDB:
                 with self.__get_connection() as cnx:
                     with cnx.cursor() as cursor:
                         cursor.prepare(query)
-                        logger.debug(EXECUTING_QUERY, query)
                         cursor.executemany(None, values)
+                        query = cursor.statement
                     cnx.commit()
-                    logger.info(EXECUTED_QUERY)
+                    logger.info(EXECUTED_QUERY, query)
                     return True
-            except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
+            except cx_Oracle.DatabaseError as exc:
+                logger.error(f"Error en query {query}: {str(exc)}", exc_info=True)
                 cnx.rollback()
-                logger.error(str(exc),
-                              exc_info=True)
                 return False
-            finally:
-                self.__close_connection()
+            except Exception as exc:
+                logger.error(f"Error en query {query}: {str(exc)}", exc_info=True)
+                cnx.rollback()
+                return False
         else:
             logger.error(NO_CONNECTION)
             return False
