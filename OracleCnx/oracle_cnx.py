@@ -54,6 +54,7 @@ class ConnectionDB:
         return lob_columns
 
     def __main(self) -> None:
+        logger.debug(self.__setup)
         """Válida que el diccionario contenga los atributos necesarios para que la clase funcione."""
         missing = [key for key in self.__attributes if str(key).lower() not in self.__setup.keys()]
         if len(missing) > 0:

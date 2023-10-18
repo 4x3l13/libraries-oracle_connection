@@ -1,1 +1,1 @@
-from .oracle_cnx import ConnectionDB
+from .oracle_cnx import ConnectionDB as CnxOracle
