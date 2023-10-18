@@ -63,7 +63,8 @@ class ConnectionDB:
         try:
             cx_Oracle.init_oracle_client(lib_dir=self.__setup["driver"])
         except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
-            logger.warning(str(exc))
+            if cx_Oracle.clientversion() is None:
+                logger.warning(str(exc))
 
     def __close_connection(self) -> None:
         """Cerrar la conexión a la base de datos."""
