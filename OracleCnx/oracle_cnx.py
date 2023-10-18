@@ -95,7 +95,7 @@ class ConnectionDB:
             logger.error(str(exc), exc_info=True)
             return False
 
-    def read_data(self, query: str, parameters: dict, datatype: str = "dict") -> [Dict, List]:
+    def read_data(self, query: str, parameters: dict = None, datatype: str = "dict") -> [Dict, List]:
         """Obtener los datos de una consulta.
 
         Args:
@@ -150,7 +150,7 @@ class ConnectionDB:
 
         return show_data
 
-    def execute_query(self, query: str, parameters: Dict) -> bool:
+    def execute_query(self, query: str, parameters: Dict = None) -> bool:
         """
         Ejecutar una consulta.
 
