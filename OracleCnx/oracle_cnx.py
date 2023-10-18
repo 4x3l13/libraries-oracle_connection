@@ -5,10 +5,10 @@ Created on Mon Oct 02 10:00:00 2023
 @author: Jhonatan Martínez
 """
 
-import cx_Oracle
-from MyLogger import setup_logger
-from OracleCnx.constants import *
 from typing import Dict, List
+from MyLogger import setup_logger
+import cx_Oracle
+from OracleCnx.constants import *
 
 
 logger = setup_logger(__name__)
