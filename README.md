@@ -13,10 +13,18 @@ Python 3.8.9,
 
 cx_Oracle==8.3.0,
 
-📚 Ejemplo de uso:
+📚 Ejemplo de uso para conexión normal:
 
     from OracleCnx import ConnectionDB
     
     cnx = ConnectionDB(setup=my_dictionary)
+    
+    data = cnx.read_data(query='select * from table')
+
+📚 Ejemplo de uso para conexión pool:
+
+    from OraclePool import PoolDB
+    
+    cnx = ConnectionDB(setup=my_dictionary, pool_size=10)
     
     data = cnx.read_data(query='select * from table')

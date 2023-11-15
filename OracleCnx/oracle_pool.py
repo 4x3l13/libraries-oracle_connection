@@ -16,7 +16,7 @@ logger = setup_logger(__name__)
 
 class PoolDB:
     """ Permite realizar un pool de conexiones a una Base de Datos"""
-    def __init__(self, setup: Dict[str, str], pool_size: int = 10) -> None:
+    def __init__(self, setup: Dict[str, str], pool_size: int = 5) -> None:
         """Constructor.
 
         Args:
