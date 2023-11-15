@@ -63,6 +63,9 @@ class PoolDB:
             logger.error(missing)
         try:
             cx_Oracle.init_oracle_client(lib_dir=self.__setup["driver"])
+        except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
+            logger.warning(str(exc))
+        try:
             dsn = self.__setup["host"] + ":" + self.__setup["port"] + '/' + self.__setup["sdi"]
             self.__pool = cx_Oracle.SessionPool(
                 user=self.__setup["user"],
@@ -74,8 +77,7 @@ class PoolDB:
                 threaded=True
             )
         except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
-            if cx_Oracle.clientversion() is None:
-                logger.warning(str(exc))
+            logger.warning(str(exc))
 
     def __get_connection(self) -> bool:
         """Crear y obtener la conexión a una base de datos
