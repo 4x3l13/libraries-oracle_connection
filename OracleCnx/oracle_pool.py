@@ -132,6 +132,8 @@ class PoolDB:
                         logger.info(DATA_OBTAINED, query)
                 except (cx_Oracle.DatabaseError, Exception) as exc:
                     logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
+                finally:
+                    self.__pool.release(self.__connection)
             else:
                 logger.warning(INVALID_DATATYPE)
         else:
@@ -140,6 +142,7 @@ class PoolDB:
         return show_data
 
     def execute_query(self, query: str, parameters: Dict = {}) -> bool:
+        result = False
         if self.__get_connection():
             try:
                 with self.__connection as cnx:
@@ -148,16 +151,19 @@ class PoolDB:
                         query = cursor.statement
                     cnx.commit()
                     logger.info(EXECUTED_QUERY, query)
-                    return True
+                    result = True
             except (cx_Oracle.DatabaseError, Exception) as exc:
                 logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
                 cnx.rollback()
-                return False
+            finally:
+                self.__pool.release(self.__connection)
         else:
             logger.warning(NO_CONNECTION)
-            return False
+
+        return result
 
     def execute_many(self, query: str, values: List) -> bool:
+        result = False
         if self.__get_connection():
             try:
                 with self.__connection as cnx:
@@ -167,11 +173,13 @@ class PoolDB:
                         query = cursor.statement
                     cnx.commit()
                     logger.info(EXECUTED_QUERY, query)
-                    return True
+                    result = True
             except (cx_Oracle.DatabaseError, Exception) as exc:
                 logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
                 cnx.rollback()
-                return False
+            finally:
+                self.__pool.release(self.__connection)
         else:
             logger.warning(NO_CONNECTION)
-            return False
+
+        return result
