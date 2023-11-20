@@ -118,39 +118,37 @@ class PoolDB:
 
         return show_data
 
+    def execute_query(self, query: str, parameters: Dict = {}) -> bool:
+        result = False
 
-def execute_query(self, query: str, parameters: Dict = {}) -> bool:
-    result = False
+        try:
+            with self.__pool.acquire() as cnx:
+                with cnx.cursor() as cursor:
+                    cursor.execute(query, parameters)
+                    query = cursor.statement
+                cnx.commit()
+                logger.info(EXECUTED_QUERY, query)
+                result = True
+        except (cx_Oracle.DatabaseError, Exception) as exc:
+            logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
+            cnx.rollback()
+        return result
 
-    try:
-        with self.__pool.acquire() as cnx:
-            with cnx.cursor() as cursor:
-                cursor.execute(query, parameters)
-                query = cursor.statement
-            cnx.commit()
-            logger.info(EXECUTED_QUERY, query)
-            result = True
-    except (cx_Oracle.DatabaseError, Exception) as exc:
-        logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
-        cnx.rollback()
-    return result
+    def execute_many(self, query: str, values: List) -> bool:
+        result = False
+        try:
+            with self.__pool.acquire() as cnx:
+                with cnx.cursor() as cursor:
+                    cursor.prepare(query)
+                    cursor.executemany(None, values)
+                    query = cursor.statement
+                cnx.commit()
+                logger.info(EXECUTED_QUERY, query)
+                result = True
+        except (cx_Oracle.DatabaseError, Exception) as exc:
+            logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
+            cnx.rollback()
+        finally:
+            self.__pool.release(self.__connection)
 
-
-def execute_many(self, query: str, values: List) -> bool:
-    result = False
-    try:
-        with self.__pool.acquire() as cnx:
-            with cnx.cursor() as cursor:
-                cursor.prepare(query)
-                cursor.executemany(None, values)
-                query = cursor.statement
-            cnx.commit()
-            logger.info(EXECUTED_QUERY, query)
-            result = True
-    except (cx_Oracle.DatabaseError, Exception) as exc:
-        logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
-        cnx.rollback()
-    finally:
-        self.__pool.release(self.__connection)
-
-    return result
+        return result
