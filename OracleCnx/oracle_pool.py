@@ -16,6 +16,7 @@ logger = setup_logger(__name__)
 
 class PoolDB:
     """ Permite realizar un pool de conexiones a una Base de Datos"""
+
     def __init__(self, setup: Dict[str, str], pool_size: int = 5) -> None:
         """Constructor.
 
@@ -79,107 +80,77 @@ class PoolDB:
         except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
             logger.warning(str(exc))
 
-    def __get_connection(self) -> bool:
-        """Crear y obtener la conexión a una base de datos
-
-        Returns:
-            bool: True si se establece la conexión, False en caso contrario.
-        """
-        try:
-            connection = self.__pool.acquire()
-            if connection is not None:
-                self.__connection = connection
-                logger.debug(ESTABLISHED_CONNECTION, self.__setup["host"])
-                return True
-            else:
-                logger.warning(NO_CONNECTION)
-                return False
-        except (cx_Oracle.DatabaseError, Exception) as exc:
-            logger.error(str(exc), exc_info=True)
-            return False
-
     def read_data(self, query: str, parameters: dict = {}, datatype: str = "dict") -> [Dict, List]:
         show_data = None
-        if self.__get_connection():
-            datatype = datatype.lower()
-            if datatype in ['dict', 'list']:
-                try:
-                    with self.__connection as cnx:
-                        with cnx.cursor() as cursor:
-                            cursor.prefetchrows = 100000
-                            cursor.arraysize = 100000
-                            cursor.execute(query, parameters)
-                            query = cursor.statement
-                            lob_columns = self.__find_lob_columns(cursor.description)
-                            data = []
-                            if len(lob_columns) > 0:
-                                for row in cursor:
-                                    new_row = list(row)
-                                    for i, column in enumerate(row):
-                                        if i in lob_columns:
-                                            new_row[i] = column.read()
-                                    data.append(tuple(new_row))
-                            else:
-                                data = cursor.fetchall()
-                            columns = [column[0].upper() for column in cursor.description]
-                            if datatype == 'dict':
-                                dictionary = []
-                                for item in data:
-                                    dictionary.append(dict(zip(columns, item)))
-                                show_data = dictionary
-                            elif datatype == 'list':
-                                show_data = [columns, data]
-                        logger.info(DATA_OBTAINED, query)
-                except (cx_Oracle.DatabaseError, Exception) as exc:
-                    logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
-                finally:
-                    self.__pool.release(self.__connection)
-            else:
-                logger.warning(INVALID_DATATYPE)
+        datatype = datatype.lower()
+        if datatype in ['dict', 'list']:
+            try:
+                with self.__pool.acquire() as cnx:
+                    with cnx.cursor() as cursor:
+                        cursor.prefetchrows = 100000
+                        cursor.arraysize = 100000
+                        cursor.execute(query, parameters)
+                        query = cursor.statement
+                        lob_columns = self.__find_lob_columns(cursor.description)
+                        data = []
+                        if len(lob_columns) > 0:
+                            for row in cursor:
+                                new_row = list(row)
+                                for i, column in enumerate(row):
+                                    if i in lob_columns:
+                                        new_row[i] = column.read()
+                                data.append(tuple(new_row))
+                        else:
+                            data = cursor.fetchall()
+                        columns = [column[0].upper() for column in cursor.description]
+                        if datatype == 'dict':
+                            dictionary = []
+                            for item in data:
+                                dictionary.append(dict(zip(columns, item)))
+                            show_data = dictionary
+                        elif datatype == 'list':
+                            show_data = [columns, data]
+                    logger.info(DATA_OBTAINED, query)
+            except (cx_Oracle.DatabaseError, Exception) as exc:
+                logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
         else:
-            logger.warning(NO_CONNECTION)
+            logger.warning(INVALID_DATATYPE)
 
         return show_data
 
-    def execute_query(self, query: str, parameters: Dict = {}) -> bool:
-        result = False
-        if self.__get_connection():
-            try:
-                with self.__connection as cnx:
-                    with cnx.cursor() as cursor:
-                        cursor.execute(query, parameters)
-                        query = cursor.statement
-                    cnx.commit()
-                    logger.info(EXECUTED_QUERY, query)
-                    result = True
-            except (cx_Oracle.DatabaseError, Exception) as exc:
-                logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
-                cnx.rollback()
-            finally:
-                self.__pool.release(self.__connection)
-        else:
-            logger.warning(NO_CONNECTION)
 
-        return result
+def execute_query(self, query: str, parameters: Dict = {}) -> bool:
+    result = False
 
-    def execute_many(self, query: str, values: List) -> bool:
-        result = False
-        if self.__get_connection():
-            try:
-                with self.__connection as cnx:
-                    with cnx.cursor() as cursor:
-                        cursor.prepare(query)
-                        cursor.executemany(None, values)
-                        query = cursor.statement
-                    cnx.commit()
-                    logger.info(EXECUTED_QUERY, query)
-                    result = True
-            except (cx_Oracle.DatabaseError, Exception) as exc:
-                logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
-                cnx.rollback()
-            finally:
-                self.__pool.release(self.__connection)
-        else:
-            logger.warning(NO_CONNECTION)
+    try:
+        with self.__pool.acquire() as cnx:
+            with cnx.cursor() as cursor:
+                cursor.execute(query, parameters)
+                query = cursor.statement
+            cnx.commit()
+            logger.info(EXECUTED_QUERY, query)
+            result = True
+    except (cx_Oracle.DatabaseError, Exception) as exc:
+        logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
+        cnx.rollback()
+    return result
 
-        return result
+
+def execute_many(self, query: str, values: List) -> bool:
+    result = False
+    try:
+        with self.__pool.acquire() as cnx:
+            with cnx.cursor() as cursor:
+                cursor.prepare(query)
+                cursor.executemany(None, values)
+                query = cursor.statement
+            cnx.commit()
+            logger.info(EXECUTED_QUERY, query)
+            result = True
+    except (cx_Oracle.DatabaseError, Exception) as exc:
+        logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
+        cnx.rollback()
+    finally:
+        self.__pool.release(self.__connection)
+
+    return result
