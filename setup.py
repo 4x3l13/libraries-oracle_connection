@@ -18,7 +18,7 @@ LONG_DESC_TYPE = "text/markdown"
 #Paquetes necesarios para que funcione la librería. Se instalarán a la vez si no lo tuvieras ya instalado
 INSTALL_REQUIRES = [
     'cx_Oracle==8.3.0',
-    'MyLogger==0.0.1'
+    'MyLogger>=0.0.2'
       ]
 
 setup(
