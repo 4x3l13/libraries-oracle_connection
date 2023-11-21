@@ -20,9 +20,13 @@ class PoolDB:
 
     def __new__(cls, *args, **kwargs):
         with cls._lock:
-            if not cls._instance:
-                cls._instance = super(PoolDB, cls).__new__(cls)
-                cls._instance._initialized = False
+            # Combine setup parameters into a unique key
+            setup_key = cls._get_setup_key(kwargs.get('setup', {}))
+
+            if setup_key not in cls._instances:
+                cls._instances[setup_key] = super(PoolDB, cls).__new__(cls)
+                cls._instances[setup_key]._initialized = False
+                return cls._instances[setup_key]
             return cls._instance
 
     def __init__(self, setup: Dict[str, str], pool_size: int = 10) -> None:
@@ -43,6 +47,12 @@ class PoolDB:
             None.
         """
         if self._initialized:
+            # Check if setup parameters have changed
+            new_setup_key = self._get_setup_key(setup)
+            if self._setup_key != new_setup_key:
+                # Setup parameters have changed, create a new instance
+                self.__class__._instances.pop(self._setup_key, None)
+                return self.__class__(setup, pool_size)
             return
         self._initialized = True
         self.__attributes = ['host', 'port', 'sdi', 'user', 'password', 'driver']
@@ -50,6 +60,10 @@ class PoolDB:
         self.__pool_size = pool_size
         self.__pool: SessionPool = None
         self.__main()
+
+    @staticmethod
+    def _get_setup_key(setup: Dict[str, str]) -> str:
+        return "|".join(f"{key}:{value}" for key, value in setup.items())
 
     @staticmethod
     def __find_lob_columns(column_descriptions) -> List:

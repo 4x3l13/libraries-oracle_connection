@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 
 HERE = pathlib.Path(__file__).parent
 
-VERSION = '0.0.5' #Muy importante, deberéis ir cambiando la versión de vuestra librería según incluyáis nuevas funcionalidades
+VERSION = '0.0.6' #Muy importante, deberéis ir cambiando la versión de vuestra librería según incluyáis nuevas funcionalidades
 PACKAGE_NAME = 'OracleCnx' #Debe coincidir con el nombre de la carpeta
 AUTHOR = 'Jhonatan Martínez'
 AUTHOR_EMAIL = 'jhonatanmartinez130220@gmail.com'
