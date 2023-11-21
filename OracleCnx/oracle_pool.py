@@ -4,20 +4,28 @@ Created on Wed Nov 15 12:00:00 2023
 
 @author: Jhonatan Martínez
 """
+import threading
 
 import cx_Oracle
 from typing import List, Dict
 from cx_Oracle import SessionPool
-from MyLogger import setup_logger
+from loguru import logger
 from OracleCnx.constants import *
-
-logger = setup_logger(__name__)
 
 
 class PoolDB:
     """ Permite realizar un pool de conexiones a una Base de Datos"""
+    _instance = None
+    _lock = threading.Lock()
 
-    def __init__(self, setup: Dict[str, str], pool_size: int = 5) -> None:
+    def __new__(cls, *args, **kwargs):
+        with cls._lock:
+            if not cls._instance:
+                cls._instance = super(PoolDB, cls).__new__(cls)
+                cls._instance._initialized = False
+            return cls._instance
+
+    def __init__(self, setup: Dict[str, str], pool_size: int = 10) -> None:
         """Constructor.
 
         Args:
@@ -34,7 +42,9 @@ class PoolDB:
         Returns:
             None.
         """
-
+        if self._initialized:
+            return
+        self._initialized = True
         self.__attributes = ['host', 'port', 'sdi', 'user', 'password', 'driver']
         self.__setup: Dict = setup
         self.__pool_size = pool_size
@@ -56,7 +66,7 @@ class PoolDB:
         return lob_columns
 
     def __main(self) -> None:
-        """Válida que el diccionario contenga los atributos necesarios para que la clase funcione."""
+        """Válida que el diccionario contenga los atributos necesarios para que la clase funcione e inicia la conexión."""
         logger.debug(self.__setup)
         missing = [key for key in self.__attributes if str(key).lower() not in self.__setup.keys()]
         if len(missing) > 0:
@@ -110,7 +120,7 @@ class PoolDB:
                             show_data = dictionary
                         elif datatype == 'list':
                             show_data = [columns, data]
-                    logger.info(DATA_OBTAINED, query)
+                    logger.info(f"{DATA_OBTAINED} {query}")
             except (cx_Oracle.DatabaseError, Exception) as exc:
                 logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
         else:
@@ -127,7 +137,7 @@ class PoolDB:
                     cursor.execute(query, parameters)
                     query = cursor.statement
                 cnx.commit()
-                logger.info(EXECUTED_QUERY, query)
+                logger.info(f"{EXECUTED_QUERY} {query}")
                 result = True
         except (cx_Oracle.DatabaseError, Exception) as exc:
             logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)
@@ -143,7 +153,7 @@ class PoolDB:
                     cursor.executemany(None, values)
                     query = cursor.statement
                 cnx.commit()
-                logger.info(EXECUTED_QUERY, query)
+                logger.info(f"{EXECUTED_QUERY} {query}")
                 result = True
         except (cx_Oracle.DatabaseError, Exception) as exc:
             logger.error(f"Error in query {query}: {str(exc)}", exc_info=True)

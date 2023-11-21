@@ -7,11 +7,8 @@ Created on Mon Oct 02 10:00:00 2023
 
 import cx_Oracle
 from typing import Dict, List
-from MyLogger import setup_logger
+from loguru import logger
 from OracleCnx.constants import *
-
-
-logger = setup_logger(__name__)
 
 
 class ConnectionDB:

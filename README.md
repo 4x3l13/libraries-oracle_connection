@@ -10,6 +10,7 @@ Para utilizarla solo necesitas pasar un diccionario con los datos solicitados, e
 
 💡 Prerequisitos:
 Python 3.8.9,
+loguru 0.7.2
 
 cx_Oracle==8.3.0,
 
