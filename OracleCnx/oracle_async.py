@@ -83,7 +83,7 @@ class AsyncDB:
                 return conn
 
             self.__connection = await asyncio.get_event_loop().run_in_executor(None, sync_connect)
-            logger.debug(ESTABLISHED_CONNECTION, self.__setup["host"])
+            logger.debug(f'{ESTABLISHED_CONNECTION} {self.__setup["host"]}')
             return True
         except (ConnectionError, Exception) as exc:
             self.__connection = None
@@ -114,7 +114,10 @@ class AsyncDB:
                                 cursor.prefetchrows = 100000
                                 cursor.arraysize = 100000
                                 # Ejecutar la consulta
-                                cursor.execute(query, parameters)
+                                if parameters:
+                                    cursor.execute(query, parameters)
+                                else:
+                                    cursor.execute(query)
                                 # Obtener las descripciones de las columnas.
                                 lob_columns = self.__find_lob_columns(cursor.description)
                                 data = []
@@ -134,12 +137,12 @@ class AsyncDB:
 
                                 # Validate the datatype to return
                                 if datatype == 'dict':
-                                    show_data = [dict(zip(columns, item)) for item in data]
+                                    data = [dict(zip(columns, item)) for item in data]
                                 elif datatype == 'list':
-                                    show_data = [columns, data]
+                                    data = [columns, data]
 
-                                logger.info(DATA_OBTAINED, query)
-                                return show_data
+                                logger.info(f'{DATA_OBTAINED} {query}')
+                                return data
 
                     show_data = await asyncio.get_event_loop().run_in_executor(None, sync_read_data)
 
