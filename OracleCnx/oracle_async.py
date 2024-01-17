@@ -90,7 +90,7 @@ class AsyncDB:
             logger.error(str(exc), exc_info=True)
             return False
 
-    async def read_data(self, query: str, parameters: Optional[dict], datatype: str = "dict") -> [Dict, List]:
+    async def read_data(self, query: str, parameters: Optional[dict] = None, datatype: str = "dict") -> [Dict, List]:
         """Obtener los datos de una consulta.
 
         Args:
