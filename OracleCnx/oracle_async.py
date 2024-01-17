@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Oct 02 10:00:00 2023
+Created on Wed Jan 17 14:00:00 2024
 
 @author: Jhonatan Martínez
 """
 
+import asyncio
 import cx_Oracle
-from typing import Dict, List
+from typing import Dict, List, Optional
 from loguru import logger
 from OracleCnx.constants import *
 
@@ -34,7 +35,7 @@ class AsyncDB:
         self.__attributes = ['host', 'port', 'sdi', 'user', 'password', 'driver']
         self.__connection: cx_Oracle.connect = None
         self.__setup: Dict = setup
-        self.__main()
+        self.__validate_attributes()
 
     @staticmethod
     def __find_lob_columns(column_descriptions) -> List:
@@ -50,27 +51,18 @@ class AsyncDB:
                 lob_columns.append(index)
         return lob_columns
 
-    def __main(self) -> None:
+    def __validate_attributes(self) -> None:
         """Válida que el diccionario contenga los atributos necesarios para que la clase funcione."""
         logger.debug(self.__setup)
-        missing = [key for key in self.__attributes if str(key).lower() not in self.__setup.keys()]
-        if len(missing) > 0:
+        missing_attributes = [key for key in self.__attributes if str(key).lower() not in self.__setup.keys()]
+        if missing_attributes:
             logger.error(MISSING_ATTRIBUTES)
-            logger.error(missing)
+            logger.error(missing_attributes)
         try:
             cx_Oracle.init_oracle_client(lib_dir=self.__setup["driver"])
         except (cx_Oracle.DatabaseError, cx_Oracle.IntegrityError, Exception) as exc:
             if cx_Oracle.clientversion() is None:
                 logger.warning(str(exc))
-
-    async def __close_connection(self) -> None:
-        """Cerrar la conexión a la base de datos."""
-        try:
-            if self.__connection is not None:
-                await self.__connection.close()
-                logger.debug(CLOSE_CONNECTION)
-        except (cx_Oracle.DatabaseError, Exception) as exc:
-            logger.error(str(exc), exc_info=True)
 
     async def __open_connection(self) -> bool:
         """Crear y obtener la conexión a una base de datos
@@ -81,11 +73,16 @@ class AsyncDB:
 
         self.__connection = None
         try:
-            dsn = self.__setup["host"] + ":" + self.__setup["port"] + '/' + self.__setup["sdi"]
-            self.__connection = await cx_Oracle.connect(user=self.__setup["user"],
-                                                        password=self.__setup["password"],
-                                                        dsn=dsn,
-                                                        encoding="UTF-8")
+
+            def sync_connect():
+                dsn = f"{self.__setup['host']}:{self.__setup['port']}/{self.__setup['sdi']}"
+                conn = cx_Oracle.connect(user=self.__setup["user"],
+                                         password=self.__setup["password"],
+                                         dsn=dsn,
+                                         encoding="UTF-8")
+                return conn
+
+            self.__connection = await asyncio.get_event_loop().run_in_executor(None, sync_connect)
             logger.debug(ESTABLISHED_CONNECTION, self.__setup["host"])
             return True
         except (ConnectionError, Exception) as exc:
@@ -93,113 +90,64 @@ class AsyncDB:
             logger.error(str(exc), exc_info=True)
             return False
 
-    async def read_data(self, query: str, parameters: dict = {}, datatype: str = "dict") -> [Dict, List]:
+    async def read_data(self, query: str, parameters: Optional[dict], datatype: str = "dict") -> [Dict, List]:
         """Obtener los datos de una consulta.
 
         Args:
             query (str): Consulta a ejecutar.
-            parameters (Dict, optional): Parámetros de la consulta.
+            parameters (dict, optional): Parámetros de la consulta.
             datatype (str, optional): Tipo de datos a retornar.
 
         Returns:
             show_data[Dict,List]: Datos obtenidos.
         """
         show_data = None
+
         if await self.__open_connection():
             datatype = datatype.lower()
+
             if datatype in ['dict', 'list']:
                 try:
-                    async with self.__connection as cnx:
-                        async with cnx.cursor() as cursor:
-                            cursor.prefetchrows = 100000
-                            cursor.arraysize = 100000
-                            # Ejecutar la consulta
-                            await cursor.execute(query, parameters)
-                            query = cursor.statement
-                            # Obtener las descripciones de las columnas.
-                            lob_columns = self.__find_lob_columns(cursor.description)
-                            data = []
-                            if len(lob_columns) > 0:
-                                async for row in cursor:
-                                    new_row = list(row)
-                                    for i, column in enumerate(row):
-                                        if i in lob_columns:
-                                            new_row[i] = column.read()
-                                    data.append(tuple(new_row))
-                            else:
-                                data = await cursor.fetchall()
-                            # Gets column_names
-                            columns = [column[0].upper() for column in cursor.description]
-                            # Validate the datatype to return
-                            if datatype == 'dict':
-                                dictionary = []
-                                for item in data:
-                                    dictionary.append(dict(zip(columns, item)))
-                                show_data = dictionary
-                            elif datatype == 'list':
-                                show_data = [columns, data]
-                        logger.info(DATA_OBTAINED, query)
+                    def sync_read_data():
+                        with self.__connection as cnx:
+                            with cnx.cursor() as cursor:
+                                cursor.prefetchrows = 100000
+                                cursor.arraysize = 100000
+                                # Ejecutar la consulta
+                                cursor.execute(query, parameters)
+                                # Obtener las descripciones de las columnas.
+                                lob_columns = self.__find_lob_columns(cursor.description)
+                                data = []
+
+                                if len(lob_columns) > 0:
+                                    for row in cursor:
+                                        new_row = list(row)
+                                        for i, column in enumerate(row):
+                                            if i in lob_columns:
+                                                new_row[i] = column.read()
+                                        data.append(tuple(new_row))
+                                else:
+                                    data = cursor.fetchall()
+
+                                # Gets column_names
+                                columns = [column[0].upper() for column in cursor.description]
+
+                                # Validate the datatype to return
+                                if datatype == 'dict':
+                                    show_data = [dict(zip(columns, item)) for item in data]
+                                elif datatype == 'list':
+                                    show_data = [columns, data]
+
+                                logger.info(DATA_OBTAINED, query)
+                                return show_data
+
+                    show_data = await asyncio.get_event_loop().run_in_executor(None, sync_read_data)
+
                 except (cx_Oracle.DatabaseError, Exception) as exc:
-                    logger.error(f"Error en query {query}: {str(exc)}", exc_info=True)
+                    logger.error(f"Error: {str(exc)}", exc_info=True)
             else:
                 logger.warning(INVALID_DATATYPE)
         else:
             logger.warning(NO_CONNECTION)
 
         return show_data
-
-    async def execute_query(self, query: str, parameters: Dict = {}) -> bool:
-        """
-        Ejecutar una consulta.
-
-        Args:
-            query (str): Consulta a ejecutar.
-            parameters (Dict, optional): Parámetros de la consulta.
-
-        Returns:
-            bool: True si se ejecuta correctamente, False en caso contrario.
-        """
-        if await self.__open_connection():
-            try:
-                async with self.__connection as cnx:
-                    async with cnx.cursor() as cursor:
-                        await cursor.execute(query, parameters)
-                        query = cursor.statement
-                    cnx.commit()
-                    logger.info(EXECUTED_QUERY, query)
-                    return True
-            except (cx_Oracle.DatabaseError, Exception) as exc:
-                logger.error(f"Error en query {query}: {str(exc)}", exc_info=True)
-                cnx.rollback()
-                return False
-        else:
-            logger.warning(NO_CONNECTION)
-            return False
-
-    async def execute_many(self, query: str, values: List) -> bool:
-        """Ejecutar una consulta con varios valores.
-
-        Args:
-            query (str): Consulta a ejecutar.
-            values (List): Valores de la consulta.
-
-        Returns:
-            bool: True si se ejecuta correctamente, False en caso contrario.
-        """
-        if await self.__open_connection():
-            try:
-                async with self.__connection as cnx:
-                    async with cnx.cursor() as cursor:
-                        cursor.prepare(query)
-                        await cursor.executemany(None, values)
-                        query = cursor.statement
-                    cnx.commit()
-                    logger.info(EXECUTED_QUERY, query)
-                    return True
-            except (cx_Oracle.DatabaseError, Exception) as exc:
-                logger.error(f"Error en query {query}: {str(exc)}", exc_info=True)
-                cnx.rollback()
-                return False
-        else:
-            logger.warning(NO_CONNECTION)
-            return False
