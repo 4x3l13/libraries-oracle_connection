@@ -39,6 +39,6 @@ Ejemplo de uso para conexión asincrona:
 
     from OracleCnx import AsyncOracle
     
-    cnx = AsyncDB(setup=my_dictionary, pool_size=10)
+    cnx = AsyncDB(setup=my_dictionary)
     
     data = awat cnx.read_data(query='select * from table')
