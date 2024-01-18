@@ -41,4 +41,4 @@ Ejemplo de uso para conexión asincrona:
     
     cnx = AsyncDB(setup=my_dictionary)
     
-    data = awat cnx.read_data(query='select * from table')
+    data = await cnx.read_data(query='select * from table')
