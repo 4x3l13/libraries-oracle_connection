@@ -4,7 +4,7 @@ Librería Conectar a bases de datos
 Por Jhonatan Martínez - jhonatanmartinez130220@gmail.com
 
 
-Librería te permite crear conexiones normal, con pool y asincronas para base de datos Oracle:
+Librería que permite crear conexiones normal, con pool y asincronas para base de datos Oracle:
 
 Para utilizarla solo necesitas pasar un diccionario con los siguientes datos:
                 - host: Server host.
@@ -21,7 +21,7 @@ cx_Oracle>=8.3.0,
 
 📚 Ejemplo de uso para conexión normal:
 
-    from OracleCnx import ConnectionDB
+    from OracleCnx import CnxOracle
     
     cnx = ConnectionDB(setup=my_dictionary)
     
@@ -29,7 +29,7 @@ cx_Oracle>=8.3.0,
 
 📚 Ejemplo de uso para conexión pool:
 
-    from OracleCnx import PoolDB
+    from OracleCnx import PoolOracle
     
     cnx = PoolDB(setup=my_dictionary, pool_size=10)
     
@@ -37,7 +37,7 @@ cx_Oracle>=8.3.0,
 
 Ejemplo de uso para conexión asincrona:
 
-    from OracleCnx import AsyncDB
+    from OracleCnx import AsyncOracle
     
     cnx = AsyncDB(setup=my_dictionary, pool_size=10)
     
