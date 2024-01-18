@@ -154,3 +154,36 @@ class AsyncDB:
             logger.warning(NO_CONNECTION)
 
         return show_data
+
+    async def execute_query(self, query: str, parameters: Optional[dict] = None) -> bool:
+        """
+        Ejecutar una consulta.
+
+        Args:
+            query (str): Consulta a ejecutar.
+            parameters (Dict, optional): Parámetros de la consulta.
+
+        Returns:
+            bool: True si se ejecuta correctamente, False en caso contrario.
+        """
+        if await self.__open_connection():
+            def sync_execute_query():
+                try:
+                    with self.__connection as cnx:
+                        with cnx.cursor() as cursor:
+                            if parameters:
+                                cursor.execute(query, parameters)
+                            else:
+                                cursor.execute(query)
+                        cnx.commit()
+                        logger.info(f"{EXECUTED_QUERY} {query}")
+                        return True
+                except (cx_Oracle.DatabaseError, Exception) as exc:
+                    logger.error(f"Error en query {query}: {str(exc)}", exc_info=True)
+                    cnx.rollback()
+
+            await asyncio.get_event_loop().run_in_executor(None, sync_execute_query)
+            return True
+        else:
+            logger.warning(NO_CONNECTION)
+            return False
