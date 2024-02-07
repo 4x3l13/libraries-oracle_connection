@@ -1,4 +1,4 @@
-Librería Conectar a bases de datos
+Librería Conectar a bases de datos Oracle
 
 
 Por Jhonatan Martínez - jhonatanmartinez130220@gmail.com
@@ -7,6 +7,7 @@ Por Jhonatan Martínez - jhonatanmartinez130220@gmail.com
 Librería que permite crear conexiones normal, con pool y asincronas para base de datos Oracle:
 
 Para utilizarla solo necesitas pasar un diccionario con los siguientes datos:
+
                 - host: Server host.
                 - port: Server port.
                 - sdi: Database SDI.
@@ -15,30 +16,55 @@ Para utilizarla solo necesitas pasar un diccionario con los siguientes datos:
                 - driver: Database driver.
 
 💡 Prerequisitos:
-Python 3.8.9,
-loguru>=0.7.2
-cx_Oracle>=8.3.0,
+Python 3.8.9, [Otras librerias](requirements.txt)
 
 📚 Ejemplo de uso para conexión normal:
 
     from OracleCnx import CnxOracle
+
+    my_setup = {
+        "host": "localhost",
+        "port": "5432",
+        "sdi": "mi_base_de_datos",
+        "user": "mi_usuario",
+        "password": "mi_contrasena"
+        "driver": "F:\Drivers\oracle\instantclient_11_2",
+    }
     
-    cnx = ConnectionDB(setup=my_dictionary)
+    cnx = ConnectionDB(setup=my_setup)
     
     data = cnx.read_data(query='select * from table')
 
 📚 Ejemplo de uso para conexión pool:
 
     from OracleCnx import PoolOracle
+
+    my_setup = {
+        "host": "localhost",
+        "port": "5432",
+        "sdi": "mi_base_de_datos",
+        "user": "mi_usuario",
+        "password": "mi_contrasena"
+        "driver": "F:\Drivers\oracle\instantclient_11_2",
+    }
     
-    cnx = PoolDB(setup=my_dictionary, pool_size=10)
+    cnx = PoolDB(setup=my_setup, pool_size=10)
     
     data = cnx.read_data(query='select * from table')
 
 Ejemplo de uso para conexión asincrona:
 
     from OracleCnx import AsyncOracle
+
+    my_setup = {
+        "host": "localhost",
+        "port": "5432",
+        "sdi": "mi_base_de_datos",
+        "user": "mi_usuario",
+        "password": "mi_contrasena"
+        "driver": "F:\Drivers\oracle\instantclient_11_2",
+    }
     
-    cnx = AsyncDB(setup=my_dictionary)
+    cnx = AsyncDB(setup=my_setup)
     
     data = await cnx.read_data(query='select * from table')
