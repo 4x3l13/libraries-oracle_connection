@@ -72,56 +72,58 @@ class AsyncDB:
         """
 
         self.__connection = None
-        server = f"{self.__setup['host']}:{self.__setup['port']}/{self.__setup['sdi']}"
+        server: str = f"{self.__setup['host']}:{self.__setup['port']}/{self.__setup['sdi']}"
+        response: bool = False
         try:
             logger.debug(f"Trying to connect to server {server}")
+            loop = asyncio.get_running_loop()
 
             def sync_connect():
+                conn = None
                 try:
                     dsn = f"{self.__setup['host']}:{self.__setup['port']}/{self.__setup['sdi']}"
-                    conn = cx_Oracle.connect(user=self.__setup["user"],
-                                             password=self.__setup["password"],
-                                             dsn=dsn,
-                                             encoding="UTF-8")
-                except (ConnectionError, cx_Oracle.DatabaseError, Exception) as exc:
-                    conn = None
-                    logger.error(f"Error connecting to server {server}: {str(exc)}", exc_info=True)
+                    conn = cx_Oracle.connect(
+                        user=self.__setup["user"],
+                        password=self.__setup["password"],
+                        dsn=dsn,
+                        encoding="UTF-8")
+                except ConnectionError as ce:
+                    logger.error(f"Error connecting to server {server}: {str(ce)}", exc_info=True)
+                except cx_Oracle.DatabaseError as de:
+                    logger.error(f"Error connecting to server {server}: {str(de)}", exc_info=True)
+                except Exception as e:
+                    logger.error(f"Error connecting to server {server}: {str(e)}", exc_info=True)
+
                 return conn
 
             self.__connection = await asyncio.get_event_loop().run_in_executor(None, sync_connect)
-            logger.debug(f'{ESTABLISHED_CONNECTION} {server}')
-            return True
-        except (ConnectionError, cx_Oracle, Exception) as exc:
-            self.__connection = None
-            logger.error(f"Error connecting to server {server}: {str(exc)}", exc_info=True)
-            return False
+            response = True
+        except ConnectionError as ce:
+            logger.error(f"Error connecting to server {server}: {str(ce)}", exc_info=True)
+        except cx_Oracle.DatabaseError as de:
+            logger.error(f"Error connecting to server {server}: {str(de)}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Error connecting to server {server}: {str(e)}", exc_info=True)
 
-    def __close_connection(self) -> None:
-        """Cerrar la conexión a la base de datos."""
-        try:
-            if self.__connection:
-                self.__connection.close()
-                logger.debug(CLOSE_CONNECTION)
-        except (cx_Oracle.DatabaseError, Exception) as exc:
-            logger.warning(str(exc))
+        return response
 
     async def read_data(self, query: str, parameters: Optional[dict] = None, datatype: str = "dict") -> [Dict, List]:
         """Obtener los datos de una consulta.
 
         Args:
-            query (str): Consulta a ejecutar.
-            parameters (dict, optional): Parámetros de la consulta.
+            query (str): Consulta a ejecutar
+            parameters (dict, optional): Parámetros de la consulta
             datatype (str, optional): Tipo de datos a retornar.
 
         Returns:
-            show_data[Dict,List]: Datos obtenidos.
+            show_data[Dict, List]: Datos obtenidos.
         """
         show_data = None
+        try:
+            if await self.__open_connection():
+                datatype = datatype.lower()
 
-        if await self.__open_connection():
-            datatype = datatype.lower()
-
-            if datatype in ['dict', 'list']:
+                if datatype in ['dict', 'list']:
 
                     def sync_read_data():
                         try:
@@ -161,18 +163,15 @@ class AsyncDB:
                                     return data
                         except (cx_Oracle.DatabaseError, Exception) as exc:
                             logger.error(f"Error: {str(exc)}", exc_info=True)
-                        finally:
-                            self.__close_connection()
 
                     show_data = await asyncio.get_event_loop().run_in_executor(None, sync_read_data)
 
-
-
+                else:
+                    logger.warning(INVALID_DATATYPE)
             else:
-                logger.warning(INVALID_DATATYPE)
-        else:
-            logger.warning(NO_CONNECTION)
-
+                logger.warning(NO_CONNECTION)
+        except Exception as exc:
+            logger.error(f"Error: {str(exc)}", exc_info=True)
         return show_data
 
     async def execute_query(self, query: str, parameters: Optional[dict] = None) -> bool:
@@ -201,8 +200,6 @@ class AsyncDB:
                 except (cx_Oracle.DatabaseError, Exception) as exc:
                     logger.error(f"Error en query {query}: {str(exc)}", exc_info=True)
                     cnx.rollback()
-                finally:
-                    self.__close_connection()
 
             await asyncio.get_event_loop().run_in_executor(None, sync_execute_query)
             return True
